@@ -1,12 +1,18 @@
-import React from "react";
+import React, { useEffect } from "react";
 import "./Header.css";
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { FaShoppingCart, FaTimes } from "react-icons/fa";
+import { FaShoppingCart, FaTimes, FaUserCircle } from "react-icons/fa";
 import { HiOutlineMenuAlt3 } from "react-icons/hi";
 import { useState } from "react";
-import { signOut } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "../../firebase/Config";
 import { toast } from "react-toastify";
+import { useDispatch } from "react-redux";
+import {
+  SET_ACTIVE_USER,
+  REMOVE_ACTIVE_USER,
+} from "../../redux/slice/AuthSlice";
+import ShowOnLogin, { ShowOnLogout } from "../hiddenLink/HiddenLink";
 
 const logo = (
   <div className="logo">
@@ -18,19 +24,44 @@ const logo = (
   </div>
 );
 
-const cart = (
-  <span className="cart">
-    <Link to="/cart">
-      cart <FaShoppingCart size={20} />
-      <p>0</p>
-    </Link>
-  </span>
-);
 const activelink = ({ isActive }) => (isActive ? "active" : "");
 
 const Header = () => {
   const [showMenu, setShowMenu] = useState(false);
+  const [displayName, setDisplayName] = useState("");
   const navigate = useNavigate();
+
+  const dispatch = useDispatch();
+
+  // monitor currently sign in user
+  useEffect(() => {
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // const uid = user.uid;
+        // console.log(user.displayName);
+
+        // by putting emial ans pasword dislayName was null so if null then emial username is display name , by slice we have cut last   char after @ ie @gamil.com and first char to upperCase
+        if (user.displayName == null) {
+          const u1 = user.email.substring(0, user.email.indexOf("@"));
+          const uName = u1.charAt(0).toUpperCase() + u1.slice(1);
+          setDisplayName(uName);
+        } else {
+          setDisplayName(user.displayName);
+        }
+
+        dispatch(
+          SET_ACTIVE_USER({
+            email: user.email,
+            userName: user.displayName ? user.displayName : displayName,
+            userID: user.uid,
+          })
+        );
+      } else {
+        setDisplayName("");
+        dispatch(REMOVE_ACTIVE_USER());
+      }
+    });
+  }, [dispatch, displayName]);
 
   const toggleMenu = () => {
     setShowMenu(!showMenu);
@@ -52,6 +83,15 @@ const Header = () => {
         toast.error(error.message);
       });
   };
+
+  const cart = (
+    <span className="cart">
+      <Link to="/cart">
+        cart <FaShoppingCart size={20} />
+        <p>0</p>
+      </Link>
+    </span>
+  );
   return (
     <header>
       <div className="header">
@@ -84,18 +124,27 @@ const Header = () => {
           </ul>
           <div onClick={hideMenu} className="header-right">
             <span className="links">
-              <NavLink to="/login" className={activelink}>
-                Login
-              </NavLink>
-              <NavLink to="/register" className={activelink}>
-                Register
-              </NavLink>
-              <NavLink to="/order-history" className={activelink}>
-                My Orders
-              </NavLink>
-              <NavLink to="/" onClick={logoutUser} className={activelink}>
-                Logout
-              </NavLink>
+              <ShowOnLogout>
+                <NavLink to="/login" className={activelink}>
+                  Login
+                </NavLink>
+              </ShowOnLogout>
+              <ShowOnLogin>
+                <a href="#home " style={{ color: "orangered" }}>
+                  <FaUserCircle size={16} />
+                  Hi,{displayName}
+                </a>
+              </ShowOnLogin>
+              <ShowOnLogin>
+                <NavLink to="/order-history" className={activelink}>
+                  My Orders
+                </NavLink>
+              </ShowOnLogin>
+              <ShowOnLogin>
+                <NavLink to="/" onClick={logoutUser} className={activelink}>
+                  Logout
+                </NavLink>
+              </ShowOnLogin>
             </span>
             {cart}
           </div>
